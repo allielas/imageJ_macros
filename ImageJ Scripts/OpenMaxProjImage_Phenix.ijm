@@ -1,15 +1,16 @@
 /*
- * Macro to open a specified image from a folder using a rXXcYYfZZ 96-well plate coordinate scheme 
+ * Macro to open a specified image from a folder using a rXXcYYfZZ well plate coordinate scheme 
  */
  
 
 macro "OpenMaxProjImage_Phenix"{
 #@ File (label = "Input directory", style = "directory") input
 #@ String (label = "File suffix", value = ".tif") suffix
-#@ int (value=1, min=1, max=8, style="slider") row 
-#@ int (value=1, min=1, max=12, style="slider") col 
+#@ int (value=1, min=1, max=16, style="slider") row 
+#@ int (value=1, min=1, max=24, style="slider") col 
 #@ int (value=1, min=1, max=40, style="slider") field
 #@ String(label="What is your fluorescence channel order", description="Enter colors in order seperated by commas e.g. green,red,far red,blue") channelOrder
+#@ boolean (label = "Using DPC?") DPC
 #@ boolean (label = "Open random image instead?") randomFlag
 
 	//add the extra slash to satisfy linux path
@@ -123,10 +124,17 @@ macro "OpenMaxProjImage_Phenix"{
 	function merge_ch(path,rowcolfield,suffix,channels) {
 		//function to open each single-channel image from that location and merge into a color composite
 		close("*");
-		base_filename = "MAX_ch" + "1-" + rowcolfield + suffix; //construct base file name based on phenix format
+		base_filename = "MAX_ch" + "2-" + rowcolfield + suffix; //construct base file name based on phenix format
 		colour_rename(channelColours);
 		if(File.exists(path + base_filename)){
-			for (i = 1; i <= channels; i++) {
+			startIndex = 1;
+			endIndex = channels;
+			//Increment by 1 if using DPC in channel 1
+			if(DPC) {
+				startIndex = 2;
+				endIndex+=1;
+			}
+			for (i = startIndex; i <= endIndex; i++) {
 	    		//open in order by channels
 				curr_img_path = path + "MAX_ch" + i+"-" + rowcolfield + suffix;
 	    		open(curr_img_path);
