@@ -1,12 +1,17 @@
-#@String directory
+#@ String directory
+#@ Integer(value=1, min=0, max=5) unsharp_radius
+#@ String (value="0.60") unsharp_weight
+#@ Integer(value=127, min=0, max=1024) clahe_block
+#@ Integer(value=256, min=0, max=1024) clahe_bins
+#@ Integer(value=3, min=0, max=24) clahe_slope
 #@ OpService ops
-
 from ij import IJ, Prefs
 from ij import WindowManager as wm
 from ij.gui import WaitForUserDialog, Roi, ShapeRoi, Toolbar
 from ij.plugin import Duplicator
 from ij.measure import ResultsTable
 from ij.plugin.frame import RoiManager 
+from ij.util import ThreadUtil
 
 import os
 
@@ -23,13 +28,11 @@ def ridge_detect(imp, rd_max, rd_min, rd_width, rd_length):
     skel.hide()
     return(skel)
     
-
-def preprocessing_filters(imp, median_radius=2, unsharp_radius=1,unsharp_weight=0.60,clahe_block=127,clahe_bins=256,clahe_slope=3,clahe_mask="*None*"):
-	IJ.run(imp, "Median...", "radius=%s" % (median_radius))
-	IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight))
-	        
+def preprocessing_filters(imp,unsharp_radius=1,unsharp_weight="0.60",clahe_block=127,clahe_bins=256,clahe_slope=3, clahe_mask="*None*"):
+	#DONT use gaussian/median/unsharp with cellprofiler, will crash
+	#IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight)) 
 	IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=%s histogram=%s maximum=%s mask=%s fast_(less_accurate)" % (clahe_block, clahe_bins, clahe_slope, clahe_mask))
-	#IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=127 histogram=256 maximum=3 mask=*None* fast_(less_accurate)")
+	IJ.saveAs(imp,'tiff',os.path.join(directory,'preprocessed.tiff'))
 	return imp
 
 def resize_img_by_roi_coords(rm, imp):
@@ -64,34 +67,35 @@ def threshold(imp, method_threshold="Otsu",relative_threshold="1"):
 
 def process_img(imp):
 	#Preprocess
-	imp = preprocessing_filters(imp)
-	IJ.saveAs(imp,'tiff',os.path.join(directory,'_preprocessed.tiff'))
+	#imp = preprocessing_filters(imp, unsharp_radius, unsharp_weight, clahe_block, clahe_bins, clahe_slope)
+	#IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight)) 
+	IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=%s histogram=%s maximum=%s mask=%s fast_(less_accurate)" % (clahe_block, clahe_bins, clahe_slope, "*None*"))
+	IJ.saveAs(imp,'tiff',os.path.join(directory,'preprocessed.tiff'))
 	#threshold and skeletonize
-
-	imp.setAutoThreshold("Otsu dark 16-bit no-reset")
+	IJ.setAutoThreshold(imp,"Otsu dark 16-bit no-reset")
 	Prefs.blackBackground = True
 	IJ.run(imp,"Make Binary","") #IJ.run(imp, "Convert to Mask", "")
-	IJ.run(imp, "Open", "");
+	#IJ.run(imp, "Open", "");
 	im2 = IJ.getImage()
-	IJ.saveAs(im2,'tiff',os.path.join(directory,'_threshmito.tiff'))
+	IJ.saveAs(im2,'tiff',os.path.join(directory,'threshmito.tiff'))
 	
 	IJ.run(imp, "Skeletonize", "")
 	im3 = IJ.getImage()
-	IJ.saveAs(im3,'tiff',os.path.join(directory,'_skelmito.tiff'))
-	IJ.run(imp, "Analyze Skeleton (2D/3D)", "") #prune=[shortest branch] prune_0 calculate
+	IJ.saveAs(im3,'tiff',os.path.join(directory,'skelmito.tiff'))
+	#IJ.run(imp, "Analyze Skeleton (2D/3D)", "") #prune=[shortest branch] prune_0 calculate
 	
 	return imp
 	#run_skel(imp)
 
 # open image
 #if using CP, assumes you are giving it a single-channel image
-def open_img(imp):
-	#IJ.run(imp,"Gaussian Blur...","sigma=2")
-	imp = IJ.open(os.path.join(directory, 'mito.tiff'))
-	return imp
+#if __name__ in ['__builtin__','__main__']:
+print(unsharp_radius)
+imp=IJ.open(os.path.join(directory, 'dummy.tiff')) #note that dummy.tiff is the input image filename for cp, and "directory" is the directory variable
+imp = IJ.getImage()
+processed_img = process_img(imp)
 
-if __name__ in ['__builtin__','__main__']:
-	imp = open_img
-	processed_img = process_img(imp)
+ThreadUtil.threadPoolExecutor.shutdown()
+	
 
 

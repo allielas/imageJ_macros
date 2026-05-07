@@ -1,6 +1,9 @@
 #@ OpService ops
 #@ ConvertService convertService
-#@ String(label="Threshold Method", required=true, choices={'otsu', 'huang'}) method_threshold
+#@ String (label="Threshold Method", required=true, choices={'otsu', 'huang'}) method_threshold
+#@ Boolean (label="Save Images?", value=False) save_images
+#@ File (label="Output Directory", style="directory") out_dir
+#@ String (label="Type of image to save as", choices={'jpg', 'tiff', 'png'}) extension
 
 from ij import IJ, Prefs
 from ij import WindowManager as wm
@@ -11,7 +14,6 @@ from ij.plugin.frame import RoiManager
 
 from net.imagej.axis import Axes
 from net.imglib2.util import Intervals
-
 import os
 
 from net.imglib2.type.numeric.integer import UnsignedByteType
@@ -32,16 +34,19 @@ def ridge_detect(imp, rd_max, rd_min, rd_width, rd_length):
 
 def threshold(imp):
 	# Get the histogram
+	print(imp)
 	data = convertService.convert(imp, Dataset)
 	thresholded = ops.run("threshold.%s" % method_threshold, data)
 	imp = convertService.convert(thresholded, ImagePlus)
-	imp = IJ.run(imp,"Make Binary","")
+	IJ.run(imp,"Make Binary","")
+	imp = IJ.getImage()
+	save_image(imp,"thresh")
 	return imp
 	
 def classic_threshold(imp):
 	IJ.resetThreshold(imp);
 	#imp.setDisplayRange(219, 7982);
-	imp.updateAndDraw();
+	imp.updateAndDraw()
 	imp.setAutoThreshold("Otsu dark 16-bit no-reset")
 	Prefs.blackBackground = True
 	IJ.run(imp,"Make Binary","") #IJ.run(imp, "Convert to Mask", "")
@@ -52,6 +57,9 @@ def preprocessing_filters(imp, median_radius=2, unsharp_radius=1,unsharp_weight=
 	IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight))    
 	IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=%s histogram=%s maximum=%s mask=%s fast_(less_accurate)" % (clahe_block, clahe_bins, clahe_slope, clahe_mask))
 	#IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=127 histogram=256 maximum=3 mask=*None* fast_(less_accurate)")
+	if save_images:
+		IJ.run(imp, "Enhance Contrast", "saturated=0.35");
+		save_image(imp,"preprocessed")
 	return imp
 
 def resize_img_by_roi_coords(rm, imp):
@@ -64,39 +72,50 @@ def resize_img_by_roi_coords(rm, imp):
 	#IJ.run(imp, "Clear Outside", "");
 	IJ.setBackgroundColor(0, 0, 0);
 	IJ.run(imp, "Clear Outside", "");
-	imp = imp.resize(bounds.width, bounds.height, "bilinear")
-	
+	imp.resize(bounds.width, bounds.height, "bilinear")
 	return imp,roiarea
 
 def get_single_channel_img():
 	og_imp = IJ.getImage()
 	imp = Duplicator().run(og_imp, 1, 1, 1, 1, 1, 1)
-	print(imp.getTitle())	
 	return imp
 
 def process_img(imp):
 	#Preprocess
 	imp = preprocessing_filters(imp)
 	imp.show()
-	
+
 	#Prompt user to make an ROI selection
 	rm = RoiManager.getInstance()
 	if not rm:
 		rm = RoiManager()
 	#IJ.setTool("polygon");
 	IJ.setTool(Toolbar.POLYGON)
-	WaitForUserDialog("Select the area,then click OK.").show();
+	WaitForUserDialog("Select the area,then click OK.").show()
 	roi1 = imp.getRoi()
 	imp.setRoi(roi1)
 	rm.addRoi(roi1)
-	
 	imp, roiarea = resize_img_by_roi_coords(rm, imp)
 
 	#threshold and skeletonize
 	imp = threshold(imp)
+	
 	IJ.run(imp, "Skeletonize", "")
+	imp = IJ.getImage()
+	save_image(imp,"skeleton")
 	IJ.run(imp, "Analyze Skeleton (2D/3D)", "prune=none calculate")
 	IJ.run("Summarize", "");
+	
+	#Save these windows
+	rowcolfield= imp.getTitle().split("_")[1]
+	IJ.selectWindow("Tagged skeleton")
+	tagged_skel = IJ.getImage()
+	save_image(tagged_skel,rowcolfield)
+	
+	IJ.selectWindow("Longest shortest paths")
+	shortestpath = IJ.getImage() 
+	save_image(shortestpath,rowcolfield)
+	
 	WaitForUserDialog("ROI area =%s Click Ok to close windows." % (roiarea)).show()
 	return imp
 	#run_skel(imp)
@@ -106,6 +125,28 @@ def open_img(imp):
 	#IJ.run(imp,"Gaussian Blur...","sigma=2")
 	imp = IJ.openImage("/path/to/image.tif")
 	return imp
+
+def save_image(imp, prefix="", extension=extension):
+	imp2 = imp.clone()
+	if save_images:
+		title = imp2.getTitle()
+		if "DUP_" in title:
+			title = title.split("_")[1]
+		out_path = out_dir.getAbsolutePath()
+  		if not os.path.exists(out_path):
+  			os.makedirs(out_dir)
+		if extension == "tiff":
+			save_ext = "tif"
+			extension = "Tiff"
+			title_string = (prefix + '_' + title + '.' + save_ext)
+		else:
+			title_string = (prefix + '_' + title + '.' + extension)
+		print(title_string)
+		IJ.saveAs(imp2,extension,os.path.join(out_path,title_string))
+		imp2.close()
+		return True
+	else:
+		return False
 
 def run_script():
 	imp = get_single_channel_img()
