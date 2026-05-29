@@ -190,7 +190,7 @@ def analyze_skel(imp, output_parameters):
 	# Create/append results to a ResultsTable...
 	morphology_tbl = tables.SimpleSheet("Mito Morphology")
 	morphology_tbl.writeRow(output_parameters)
-	#morphology_tbl.updateDisplay()
+	morphology_tbl.updateDisplay()
 	
 	IJ.log(str(total_length))
 	IJ.log(str(cumulative_shortestpaths_length))
@@ -309,7 +309,7 @@ def run_script():
 	csv_filename = "testdata2.csv"
 	csv_path = os.path.join(out_path, csv_filename)
 	# open the csv first (if its not there, newly created)
-	
+
 	for root,dirs,files in os.walk(in_path):
 		for filename in files:
 			if ".tiff" in filename:
@@ -324,7 +324,10 @@ def run_script():
 	#f = open(csv_path, 'wb')#, newline='') #"wb"
 	#writer = csv.writer(f)
 	#add_results_to_csv(skelresult, writer, out_path)
+
 	IJ.saveAs("Results", os.path.join(out_path,csv_filename))
+	print("Saved at " + os.path.join(out_path,csv_filename))
+
 	#wm.getWindow("Mito Morphology").close()
 if __name__ in ['__builtin__','__main__']:
 	run_script()
