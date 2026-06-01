@@ -180,20 +180,23 @@ def analyze_skel(imp, output_parameters):
 	
 	branches = list(skel_result.getBranches())
 	output_parameters["network branches mean"] = mean(branches)
-	output_parameters["network branches median"] = median(branches)
+	output_parameters["network branches median"] = median(branches) #this line is buggy
 	output_parameters["network branches stdev"] = stdev(branches)
 	
 	output_parameters["total skeleton length"] = total_length
 	output_parameters["total triple points"] = total_triplepoints
 	output_parameters["cumulative longest shortest path length"] = cumulative_shortestpaths_length
-	
+	#print(str(branches) + str(median(branches))
 	# Create/append results to a ResultsTable...
+	
 	morphology_tbl = tables.SimpleSheet("Mito Morphology")
+	activewindow = wm.getActiveTable()
+	activewindow.removeNotify() 
 	morphology_tbl.writeRow(output_parameters)
 	morphology_tbl.updateDisplay()
 	
-	IJ.log(str(total_length))
-	IJ.log(str(cumulative_shortestpaths_length))
+	#IJ.log(str(total_length))
+	#IJ.log(str(cumulative_shortestpaths_length))
 	# get the separate skeletons
 	'''
 	graph = skelResult.getGraph()
