@@ -1,6 +1,9 @@
 #@ File (style="directory") imageFolder
 #@ File (style="directory") outputFolder
-#@ int(value=2, min=1, max=4) gfpChannel
+#@ int(value=3, min=1, max=4) staticChannel
+#@ int(value=100, min=0, max=30000) minBin
+#@ int(value=4000, min=1, max=30000) maxBin
+#@ String(label="file extension", value=".vsi") fileExt
 
 macro "ROI crop with maxZ [7] "{   //Assigns '7' as shortcut to run macro.
 //Getting set up for the session
@@ -8,7 +11,7 @@ macro "ROI crop with maxZ [7] "{   //Assigns '7' as shortcut to run macro.
 	//dir = File.directory;
 	filelist = getFileList(imageFolder); 
 	for (i = 0; i < lengthOf(filelist); i++) {
-	    if (endsWith(filelist[i], ".vsi")) {   //This directs the program to the folder to use.
+	    if (endsWith(filelist[i], fileExt)) {   //This directs the program to the folder to use.
 	    	fileName = filelist[i];
 	    	//print(fileName);
 	    	open(imageFolder + "/" + fileName);
@@ -24,8 +27,8 @@ macro "ROI crop with maxZ [7] "{   //Assigns '7' as shortcut to run macro.
 		    	setSlice(j);
 		    	run("Enhance Contrast", "saturated=0.35");
 		    	//run("Enhance Local Contrast (CLAHE)", "blocksize=127 histogram=256 maximum=3 mask=*None* fast_(less_accurate) process_as_composite");
-		    	if(j==(gfpChannel)){
-		    		setMinAndMax(800, 20000); // Set min and max to a set value for channel 2 (GFP) (used 200, 1000 for p16)
+		    	if(j==(staticChannel)){
+		    		setMinAndMax(minBin, maxBin); // Set min and max to a set value for channel 2 (GFP) (used 200, 1000 for p16)
 		    	}
 		    }
 			makeRectangle(686, 683, 800, 800);
@@ -33,13 +36,18 @@ macro "ROI crop with maxZ [7] "{   //Assigns '7' as shortcut to run macro.
 			roiManager("add & draw");
 			run("Crop");
 			//save(dir + "/crops/" + zproj_name +"_crop.tif");
-			save(outputFolder + "/" + zproj_name + "_crop.tif");
+			save(outputFolder + "/" + zproj_name + "_crop"+fileExt);
 			//Go to next image in folder and start again:
 			//selectWindow(original);	//This selects the original image, with the filename so that 'Open next' will have a reference of what was previously open so it knows where to go next.
 			selectWindow(original);
 			close("*");
 			//close("\\Others");	//This closes all the inactive image(s) without closing the Results window or the ROI Manager
-			waitForUser("Click to begin working on the next image");
+			if (i == (lengthOf(filelist)-2)){
+				waitForUser("Finished iterating through folder. Click to close");
+	    	}
+	    	else{
+	    		waitForUser("Click to begin working on the next image");
+	    		}
 	    }
 			
 	}	

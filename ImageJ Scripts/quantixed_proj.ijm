@@ -107,8 +107,10 @@ macro "montage_folder from Quantixed" {
 	fr_ch = channelsNames[get_colour_index("fr")];
 	DAPI_ch = channelsNames[get_colour_index("blue")];
 	bf_ch = channelsNames[get_colour_index("gray")];
+	print(red_ch);
 	Array.print(channelsNames);
 	scale = 10;
-	run("Make Montage Directory", "source="+ cropFolder+" destination="+outputFolder+" gray="+nChannels+" merge=1 g1="+channelsNames[0]+" g2="+channelsNames[1]+"g3="+channelsNames[2]+" g4="+channelsNames[3]+" g5="+channelsNames[4]+" red="+red_ch+" green="+gfp_ch+" blue=*None* gray="+bf_ch+" cyan="+DAPI_ch+" magenta="+fr_ch+" yellow=*None* grout=8 dpi=300 include scale="+scale+" scaling,1=0.069");
+	run("Make Montage Directory", "source="+ cropFolder+" destination="+outputFolder+" gray="+nChannels+" merge=1 g1="+channelsNames[0]+" g2="+channelsNames[1]+"g3="+channelsNames[2]+ " red="+red_ch+" green="+gfp_ch+" blue=*None* cyan="+DAPI_ch+" yellow=*None* grout=8 dpi=300 include scale="+scale+" scaling,1=0.069");
+	//run("Make Montage Directory", "source="+ cropFolder+" destination="+outputFolder+" gray="+nChannels+" merge=1 g1="+channelsNames[0]+" g2="+channelsNames[1]+"g3="+channelsNames[2]+" g4="+channelsNames[3]+" g5="+channelsNames[4]+" red="+red_ch+" green="+gfp_ch+" blue=*None* gray="+bf_ch+" cyan="+DAPI_ch+" magenta="+fr_ch+" yellow=*None* grout=8 dpi=300 include scale="+scale+" scaling,1=0.069");
 	
 }
