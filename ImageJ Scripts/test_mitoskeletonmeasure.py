@@ -12,8 +12,8 @@ from ij import WindowManager as wm
 from ij.gui import WaitForUserDialog, Roi, ShapeRoi, Toolbar
 from ij.plugin import Duplicator
 from ij.measure import ResultsTable
-from ij.plugin.frame import RoiManager 
-
+from ij.plugin.frame import RoiManager
+from excel.functions.plugins import ExcelFunctions
 import os, csv, re
 from collections import OrderedDict
 from net.imagej import Dataset
@@ -26,17 +26,6 @@ from statistics import median, mean, stdev
 import tables
 
 #  Note; for this plugin we take a binary image from cellprofiler and label it according to the image_object number
-#from ij.skeleton_analysis import AnalyzeSkeleton_,Graph,Edge,Vertex
-# from the mina plugin
-def ridge_detect(imp, rd_max, rd_min, rd_width, rd_length):
-	title = imp.getTitle()
-	IJ.run(imp, "8-bit", "");
-	#IJ.run(imp, "Ridge Detection", "line_width=%s high_contrast=%s low_contrast=%s make_binary method_for_overlap_resolution=NONE minimum_line_length=%s maximum=0" % (rd_width, rd_max, rd_min, rd_length))
-	IJ.run(imp, "Remove Overlay", "")
-	skel = wm.getImage(title + " Detected segments")
-	IJ.run(skel, "Skeletonize (2D/3D)", "")
-	skel.hide()
-	return(skel)
 
 def threshold(imp):
 	# Get the histogram
@@ -48,7 +37,7 @@ def threshold(imp):
 	imp = IJ.getImage()
 	save_image(imp,"thresh")
 	return imp
-	
+
 def classic_threshold(imp):
 	IJ.resetThreshold(imp);
 	#imp.setDisplayRange(219, 7982);
@@ -72,7 +61,7 @@ def get_plate_number(file_name):
         return match.group(1)
     else:
         return None
-        
+
 def get_img_number(file_name):
 	#image number at end of filename
 	file_name_noext = file_name.split(".")[0]
@@ -84,7 +73,7 @@ def get_img_number(file_name):
 
 def preprocessing_filters(imp, median_radius=2, unsharp_radius=1,unsharp_weight=0.60,clahe_block=127,clahe_bins=256,clahe_slope=3,clahe_mask="*None*"):
 	IJ.run(imp, "Median...", "radius=%s" % (median_radius))
-	IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight))	
+	IJ.run(imp, "Unsharp Mask...", "radius=%s mask=%s" % (unsharp_radius, unsharp_weight))
 	IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=%s histogram=%s maximum=%s mask=%s fast_(less_accurate)" % (clahe_block, clahe_bins, clahe_slope, clahe_mask))
 	#IJ.run(imp, "Enhance Local Contrast (CLAHE)", "blocksize=127 histogram=256 maximum=3 mask=*None* fast_(less_accurate)")
 	if save_images:
@@ -92,46 +81,97 @@ def preprocessing_filters(imp, median_radius=2, unsharp_radius=1,unsharp_weight=
 		save_image(imp,"preprocessed")
 	return imp
 
+def show_skel_results_table(skelresults): 
+	rt = ResultsTable()
+	rt.showRowNumbers(True)
+
+	head = ["Skeleton", "# Branches","# Junctions", "# End-point voxels", "# Junction voxels","# Slab voxels","Average Branch Length",  "# Triple points", "# Quadruple points", "Maximum Branch Length", "Longest Shortest Path", "spx", "spy", "spz"]
+
+	for i in range(skelresults.getNumOfTrees()):
+		rt.incrementCounter()
+	
+		rt.addValue(head[ 1], skelresults.getBranches()[i])
+		rt.addValue(head[ 2], skelresults.getJunctions()[i])
+		rt.addValue(head[ 3], skelresults.getEndPoints()[i])
+		rt.addValue(head[ 4], skelresults.getJunctionVoxels()[i])
+		rt.addValue(head[ 5], skelresults.getSlabs()[i])
+		rt.addValue(head[ 6], skelresults.getAverageBranchLength()[i])
+		rt.addValue(head[ 7], skelresults.getTriples()[i])
+		rt.addValue(head[ 8], skelresults.getQuadruples()[i])
+		rt.addValue(head[ 9], skelresults.getMaximumBranchLength()[i])
+		
+		#if list is poplated add these to table
+		if skelresults.shortestPathList:
+			rt.addValue(head[10],skelresults.getShortestPathList().get(i))
+			rt.addValue(head[11],skelresults.getSpStartPosition()[i][0])
+			rt.addValue(head[12],skelresults.getSpStartPosition()[i][1])
+			rt.addValue(head[13],skelresults.getSpStartPosition()[i][2])
+	
+		if 0 == i % 100: 
+			rt.show("Results")
+	rt.show("Results")
+	active_window_res = wm.getActiveTable()
+	active_window_res.removeNotify()
+	#IJ.run("Summarize")
+	#rt.show("Results")
+	return rt
 
 #def get_single_channel_img():
 #	og_imp = IJ.getImage()
 #	imp = Duplicator().run(og_imp, 1, 1, 1, 1, 1, 1)
 #	return imp
 # run AnalyzeSkeleton
-# (see https://fiji.sc/AnalyzeSkeleton 
+# (see https://fiji.sc/AnalyzeSkeleton
 # and https://fiji.sc/javadoc/skeleton_analysis/package-summary.html)
-def analyze_skel(imp, output_parameters):
+def analyze_skel(imp, output_parameters, out_path):
 	skel = AnalyzeSkeleton_()
 	skel.setup("",imp)
 	skel_result = skel.run(AnalyzeSkeleton_.NONE, False, True, None, True, True)
+	title = imp.getTitle()
 
+	#save skelresult in a seperate dir
+	secondary_dir = os.path.join(out_path,"AllSkeletons")
+	#print(secondary_dir)
+	if not os.path.exists(secondary_dir):
+		os.mkdir(secondary_dir)
+	skel_csv_filename = os.path.join(secondary_dir,title.split(".")[0]+".csv")
+	full_skel_results_table = show_skel_results_table(skel_result)
+	full_skel_results_table.saveAs(skel_csv_filename)
+#	active_window_skel = wm.getActiveTable()
+#	active_window_skel.removeNotify()
+#	active_results_skel = active_window_skel.getResultsTable()
+#	active_results_skel.updateResults()
+#	active_results_skel.save(os.path.join(secondary_dir,title.split(".")[0]+".csv"))
 	# read results
 	shortest_paths = skel_result.getShortestPathList().toArray()
-	branch_lengths = skel_result.getAverageBranchLength()
-	#max_branch_lengths = skel_result.getMaximumBranchLength() 
-	branch_numbers = skel_result.getBranches()
+	avg_branch_lengths = skel_result.getAverageBranchLength()
+	branches = list(skel_result.getBranches())
+	#max_branch_lengths = skel_result.getMaximumBranchLength()
 	#endpoints = skel_result.getEndPoints()
 	#junctions = skel_result.getJunctions()
-	triples = skel_result.getTriples()
-	#calculate totals
-	total_length = 0
-	for i in range(len(branch_numbers)):
-		total_length = total_length + (branch_numbers[i] * branch_lengths[i])
-		
-	cumulative_shortestpaths_length = 0
-	for i in range(len(shortest_paths)):
-		cumulative_shortestpaths_length = cumulative_shortestpaths_length + shortest_paths[i]
-		
-	total_triplepoints = 0
-	for i in range(len(triples)):
-		total_triplepoints = total_triplepoints + triples[i]
+
+	#calculate totals / max and add to list from the table
+	columns = ["# Branches","# Junctions", "# End-point voxels", "# Junction voxels","# Slab voxels","Average Branch Length",  "# Triple points", "# Quadruple points", "Maximum Branch Length", "Longest Shortest Path", "spx", "spy", "spz"]
+	totals = []
+	maxes = []
+	for colname in columns:
+		column = full_skel_results_table.getColumn(colname)
+		totals.append(sum(column))
+		maxes.append(max(column))
+	
+	totals_dict = dict(zip(columns, totals))
+	max_dict = dict(zip(columns, maxes))
+	
+	#for i in range(len(shortest_paths)):
+	#	cumulative_shortestpaths_length = cumulative_shortestpaths_length + shortest_paths[i]
 	
 	branch_lengths = []
 	summed_lengths = []
 	graphs = skel_result.getGraph()
-	
-	#using classes from https://github.com/StuartLab/MiNA/blob/master/src/scripts/MiNA_Analyze_Morphology.py
+	total_length = 0
 	num_donuts = 0
+
+	#using classes from https://github.com/StuartLab/MiNA/blob/master/src/scripts/MiNA_Analyze_Morphology.py
 	for graph in graphs:
 		summed_length = 0.0
 		edges = graph.getEdges()
@@ -161,64 +201,79 @@ def analyze_skel(imp, output_parameters):
 			num_donuts += 1
 
 		summed_lengths.append(summed_length)
-	
-	title = imp.getTitle()
-	output_parameters["image title"] = title
+		total_length += summed_length
+
+	total_length_fromavg = 0
+	for i in range(len(branches)):
+		#total_length += branch
+		total_length_fromavg = total_length + (branches[i] * branch_lengths[i])
+
+#		output_parameters = OrderedDict([("ImageTitle", ""),
+#									 ("ImageNumber", ""),
+#									 ("Metadata_PlateNumber", ""),
+#									 ("Metadata_RowColField", ""),
+#									 ("Metadata_ThresholdingOP", float),
+#									 #("use ridge detection", ""),
+#									 #("mitochondrial footprint", float),
+#									 ("BranchLength_Mean", float),
+#									 ("BranchLength_Median", float),
+#									 ("BranchLength_Stdev", float),
+#									 ("SkeletonLength_Mean", float),
+#									 ("SkeletonLength_Median", float),
+#									 ("SkeletonLength_Stdev", float),
+#									 ("SkeletonLength_Max", float),
+#									 ("BranchesPerNetwork_Mean", float),
+#									 ("BranchesPerNetwork_Median", float),
+#									 ("BranchesPerNetwork_Stdev", float),
+#									 ("BranchesPerNetwork_Max", float),
+#									 ("Total_SkeletonLength", float),
+# 									 ("Total_SkeletonLength_FromAvg", float),
+#									 ("Total_TriplePoints", float),
+#		 							 ("Total_LongestShortestPathLength", float),
+#									 ("Total_Donuts", int)])
+
+	output_parameters["ImageTitle"] = title
 	output_parameters["ImageNumber"] = get_img_number(title)
-	output_parameters["PlateNumber"] = get_plate_number(title)
-	output_parameters["Metadata_WellColField"] = get_location_code(title)
-	output_parameters["thresholding op"] = threshold_method
-	output_parameters["donuts"] = num_donuts
+	output_parameters["Metadata_PlateNumber"] = get_plate_number(title)
+	output_parameters["Metadata_RowColField"] = get_location_code(title)
+	output_parameters["Metadata_ThresholdingOP"] = threshold_method
+	output_parameters["Total_Donuts"] = num_donuts
+
+	output_parameters["BranchLength_Mean"] = mean(branch_lengths)
+	output_parameters["BranchLength_Median"] = median(branch_lengths)
+	output_parameters["BranchLength_Stdev"] = stdev(branch_lengths)
+	output_parameters["BranchLength_Max"] = max(branch_lengths)
+
+	output_parameters["SkeletonLength_Mean"] = mean(summed_lengths)
+	output_parameters["SkeletonLength_Median"] = median(summed_lengths)
+	output_parameters["SkeletonLength_Stdev"] = stdev(summed_lengths)
+	output_parameters["SkeletonLength_Max"] = max(summed_lengths)
+
+	output_parameters["BranchesPerNetwork_Mean"] = mean(branches)
+	output_parameters["BranchesPerNetwork_Median"] = median(branches) #this line is buggy
+	output_parameters["BranchesPerNetwork_Stdev"] = stdev(branches)
+	output_parameters["BranchesPerNetwork_Max"] = max(branches)
+
+	output_parameters["Total_SkeletonLength"] = total_length
+	output_parameters["Total_SkeletonLength_FromAvg"] = total_length_fromavg
+	output_parameters["Total_TriplePoints"] = totals_dict.get("# Triple points")
+	output_parameters["Total_LongestShortestPathLength"] = totals_dict.get("Longest Shortest Path")
 	
-	output_parameters["branch length mean"] = mean(branch_lengths)
-	output_parameters["branch length median"] = median(branch_lengths)
-	output_parameters["branch length stdev"] = stdev(branch_lengths)
+	#Todo: add the total and max for TriplePoints, LongestShortestPathLength, avgbranchelngth
 	
-	output_parameters["summed branch lengths mean"] = mean(summed_lengths)
-	output_parameters["summed branch lengths median"] = median(summed_lengths)
-	output_parameters["summed branch lengths stdev"] = stdev(summed_lengths)
 	
-	branches = list(skel_result.getBranches())
-	output_parameters["network branches mean"] = mean(branches)
-	output_parameters["network branches median"] = median(branches) #this line is buggy
-	output_parameters["network branches stdev"] = stdev(branches)
-	
-	output_parameters["total skeleton length"] = total_length
-	output_parameters["total triple points"] = total_triplepoints
-	output_parameters["cumulative longest shortest path length"] = cumulative_shortestpaths_length
 	#print(str(branches) + str(median(branches))
 	# Create/append results to a ResultsTable...
-	
+
 	morphology_tbl = tables.SimpleSheet("Mito Morphology")
-	activewindow = wm.getActiveTable()
-	activewindow.removeNotify() 
 	morphology_tbl.writeRow(output_parameters)
 	morphology_tbl.updateDisplay()
-	
+	active_window = wm.getActiveTable()
+	active_window.removeNotify()
+
 	#IJ.log(str(total_length))
 	#IJ.log(str(cumulative_shortestpaths_length))
 	# get the separate skeletons
-	'''
-	graph = skelResult.getGraph()
-	print len(graph)
-	print skelResult.getNumOfTrees()
-
-	def getGraphLength(graph):
-		length = 0
-		for g in graph.getEdges():
-			length = length + g.getLength()
-		return length
-	# find the longest graph
-	graph = sorted(graph, key=lambda g: getGraphLength(g), reverse=True)
-	longestGraph = graph[0]
-	
-	# find the longest edge
-	edges = longestGraph.getEdges()
-	edges = sorted(edges, key=lambda edge: edge.getLength(), reverse=True)
-	longestEdge = edges[0]
-	
-	print(longestGraph, longestEdge)
-	'''
 	return imp, morphology_tbl
 
 def process_img(imp):
@@ -236,9 +291,9 @@ def process_img(imp):
 	#IJ.selectWindow("Tagged skeleton")
 	#tagged_skel = IJ.getImage()
 	#save_image(tagged_skel,rowcolfield)
-	
+
 	#IJ.selectWindow("Longest shortest paths")
-	#shortestpath = IJ.getImage() 
+	#shortestpath = IJ.getImage()
 	#save_image(shortestpath,rowcolfield)
 
 	return imp
@@ -256,14 +311,14 @@ def save_image(imp, prefix="", extension=extension, force_3char=False):
 		  # if you need the 3 char tif extension
 		if extension == "tiff" and force_3char:
 			extension = "tif"
-		
+
 		#make the title attach to the required extension
 		if title.endswith(extension):
 			filename = title.split(".")[0]
 		else:
 			filename = title
 		title_string = (prefix + '_' + filename + '.' + extension)
-		
+
 		print(title_string)
 		IJ.saveAs(imp2,extension,os.path.join(out_path,title_string))
 		imp2.close()
@@ -277,7 +332,7 @@ def add_results_to_csv(skelresults, writer, out_path):
 	headings_list = list(headings)
 	print(headings_list)
 	writer.writerow(headings_list)
-	
+
 	for i in range(skelresults.rt.getCounter()):
 		row_values = skelresults.getRow(i).values() #this returns a dict but we only care about the numbers
 		row_list = list(row_values)
@@ -286,30 +341,34 @@ def add_results_to_csv(skelresults, writer, out_path):
 	return True
 
 def run_script():
-	
-	output_parameters = OrderedDict([("image title", ""),
+
+	output_parameters = OrderedDict([("ImageTitle", ""),
 									 ("ImageNumber", ""),
-									 ("PlateNumber", ""),
-									 ("Metadata_WellColField", ""),
-									 ("thresholding op", float),
+									 ("Metadata_PlateNumber", ""),
+									 ("Metadata_RowColField", ""),
+									 ("Metadata_ThresholdingOP", float),
 									 #("use ridge detection", ""),
 									 #("mitochondrial footprint", float),
-									 ("branch length mean", float),
-									 ("branch length median", float),
-									 ("branch length stdev", float),
-									 ("summed branch lengths mean", float),
-									 ("summed branch lengths median", float),
-									 ("summed branch lengths stdev", float),
-									 ("network branches mean", float),
-									 ("network branches median", float),
-									 ("network branches stdev", float),
-									 ("total skeleton length", float),
-									 ("total triple points", float),
-		 							 ("cumulative longest shortest path length", float),
-									 ("donuts", int)])					 
+									 ("BranchLength_Mean", float),
+									 ("BranchLength_Median", float),
+									 ("BranchLength_Stdev", float),
+									 ("SkeletonLength_Mean", float),
+									 ("SkeletonLength_Median", float),
+									 ("SkeletonLength_Stdev", float),
+									 ("SkeletonLength_Max", float),
+									 ("BranchesPerNetwork_Mean", float),
+									 ("BranchesPerNetwork_Median", float),
+									 ("BranchesPerNetwork_Stdev", float),
+									 ("BranchesPerNetwork_Max", float),
+									 ("Total_SkeletonLength", float),
+ 									 ("Total_SkeletonLength_FromAvg", float),
+									 ("Total_TriplePoints", float),
+		 							 ("Total_LongestShortestPathLength", float),
+									 ("Total_Donuts", int)])
 	in_path = in_dir.getAbsolutePath()
 	out_path = out_dir.getAbsolutePath()
-	csv_filename = "testdata2.csv"
+	new_filename = in_dir.getName()
+	csv_filename = new_filename + ".csv"
 	csv_path = os.path.join(out_path, csv_filename)
 	# open the csv first (if its not there, newly created)
 
@@ -319,19 +378,23 @@ def run_script():
 				image_path = os.path.join(root,filename)
 				imp = IJ.openImage(image_path)
 				imp = process_img(imp)
-				imp,skelresult = analyze_skel(imp, output_parameters)
-				
+				imp,skelresult = analyze_skel(imp, output_parameters, out_path)
+
 				IJ.run("Close All")
 				#
 	#now export as csv
+	full_csv_filename = os.path.join(out_path,csv_filename)
+	skelresult.rt.save(full_csv_filename)
+	print("Saved at " + os.path.join(out_path,csv_filename))
 	#f = open(csv_path, 'wb')#, newline='') #"wb"
 	#writer = csv.writer(f)
 	#add_results_to_csv(skelresult, writer, out_path)
+	#IJ.selectWindow("Mito Morphology")
+	#IJ.saveAs("Results", os.path.join(out_path,csv_filename))
 
-	IJ.saveAs("Results", os.path.join(out_path,csv_filename))
-	print("Saved at " + os.path.join(out_path,csv_filename))
-
-	#wm.getWindow("Mito Morphology").close()
+	# cleanup
+	IJ.run("Clear Results")
+	wm.getWindow("Mito Morphology").close()
+	wm.getWindow("Results").close()
 if __name__ in ['__builtin__','__main__']:
 	run_script()
-	
