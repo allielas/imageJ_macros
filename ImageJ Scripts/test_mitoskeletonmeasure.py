@@ -364,16 +364,16 @@ def run_script():
 				imp, skelresult = analyze_skel(imp, output_parameters, out_path)
 				IJ.run("Close All")
 		# now export as csv
-		full_csv_filename = os.path.join(out_path, csv_filename)
-		skelresult.rt.save(full_csv_filename)
-		print("Saved at " + os.path.join(out_path, csv_filename))
-		# IJ.selectWindow("Mito Morphology")
-		# IJ.saveAs("Results", os.path.join(out_path,csv_filename))
+	full_csv_filename = os.path.join(out_path, csv_filename)
+	skelresult.rt.save(full_csv_filename)
+	print("Saved at " + os.path.join(out_path, csv_filename))
+	# IJ.selectWindow("Mito Morphology")
+	# IJ.saveAs("Results", os.path.join(out_path,csv_filename))
 
-		# cleanup
-		IJ.run("Clear Results")
-		wm.getWindow("Mito Morphology").close()
-		wm.getWindow("Results").close()
+	# cleanup
+	IJ.run("Clear Results")
+	wm.getWindow("Mito Morphology").close()
+	wm.getWindow("Results").close()
 
 
 if __name__ in ["__builtin__", "__main__"]:
