@@ -77,7 +77,7 @@ def get_skel_results_table_header_cols():
 def get_output_parameters():
 	output_columns = ( 
 		"ImageTitle", 
-		"ImageNumber", 
+		"ObjectNumber", 
 		"Metadata_PlateNumber", 
 		"Metadata_RowColField", 
 		"Metadata_ThresholdingOP",
