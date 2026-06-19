@@ -44,7 +44,7 @@ def get_plate_number(file_name):
 		return None
 
 
-def get_img_number(file_name):
+def get_object_number(file_name):
 	# image number at end of filename
 	file_name_noext = file_name.split(".")[0]
 	match = re.search(r"_(\d{1,2})$", file_name_noext)
@@ -352,7 +352,7 @@ def run_script():
 				output_parameters.update(
 					{
 						"ImageTitle": title,
-						"ImageNumber": get_img_number(title),
+						"ObjectNumber": get_object_number(title),
 						"Metadata_PlateNumber": get_plate_number(title),
 						"Metadata_RowColField": get_location_code(title),
 						"Metadata_ThresholdingOP": threshold_method,
