@@ -3,6 +3,7 @@
 # @ ConvertService convertService
 # @ String (label="Threshold Method", required=true, choices={'otsu', 'huang'}) threshold_method
 # @ Boolean (label="Save Images?", value=False) save_images
+# @ Boolean (label="Run through multiple batches in a parent folder?", value=False) batch_folder
 # @ File (label="Input Directory", style="directory") in_dir
 # @ File (label="Output Directory", style="directory") out_dir
 # @ String (label="Type of image to save as", choices={'jpg', 'tiff', 'png'}) extension
@@ -163,9 +164,9 @@ def analyze_skel(imp, output_parameters, out_path):
 	full_skel_results_table.saveAs(skel_csv_filename)
 	# read results
 	shortest_paths = skel_result.getShortestPathList().toArray()
-	branches = list(skel_result.getBranches())
 	graphs = skel_result.getGraph()
-
+	branches = list(skel_result.getBranches())
+	average_branch_lengths = list(skel_result.getAverageBranchLength())
 	branch_lengths = []
 	summed_lengths = []
 	total_length = 0
@@ -204,10 +205,13 @@ def analyze_skel(imp, output_parameters, out_path):
 		# add summed length for this graph to the list of summed lengths for all skeletons (and update total)
 		summed_lengths.append(summed_length)
 		total_length += summed_length
-		 # calculate total length from branches by multiplying the number of branches by the average branch length for each skeleton and summing across all skeletons
+		
+ 	# calculate total length from branches by multiplying the number of branches by the average branch length for each skeleton and summing across all skeletons
 	for i in range(len(branches)):
-		# total_length += branch
-		total_length_from_branches = total_length + (branches[i] * branch_lengths[i])
+		try:
+			total_length_from_branches += (branches[i] * average_branch_lengths[i])
+		except IndexError as e:
+			print("Branch legnths out of range for image " + title + " : " + e)
 
 	# update output parameters with the values we have calculated so far
 	output_parameters.update({\
@@ -334,12 +338,9 @@ def add_results_to_csv(skelresults, writer, out_path):
 	return True
 
 
-def run_script():
+def run_script(in_path,out_path,new_filename):
 	# get output parameters ready
 	output_parameters = get_output_parameters()
-	in_path = in_dir.getAbsolutePath()
-	out_path = out_dir.getAbsolutePath()
-	new_filename = in_dir.getName()
 	csv_filename = new_filename + ".csv"
 	# recurse through input directory and process images, analyze skeleton, and add results to output
 	for root, dirs, files in os.walk(in_path):
@@ -375,6 +376,34 @@ def run_script():
 	wm.getWindow("Mito Morphology").close()
 	wm.getWindow("Results").close()
 
+def batch_run_script(in_path,out_path):
+	# Replacing some abbreviations (e.g. $HOME on Linux).
+	print(in_path)
+	in_path = os.path.expanduser(in_path)
+	in_path = os.path.expandvars(in_path)
+	folders_to_use = []
+	#add all folders to dir
+	for item in os.listdir(in_path):
+		#make the correct path and add to dir if this is a dir
+		full_path = os.path.join(in_path, item)
+		if os.path.isdir(full_path):
+			
+			folders_to_use.append(full_path)
+	#now run script for everything in listy
+	for folder in folders_to_use:
+		abspath_folder = os.path.abspath(folder)
+		foldername = os.path.basename(folder)
+		new_out_folder = os.path.join(out_path,foldername)
+		print("Running through folder: "+ foldername + ", full path: "+ abspath_folder + "; saving to: "+ new_out_folder)
+		if not os.path.exists(new_out_folder):
+			os.mkdir(new_out_folder)
+		run_script(abspath_folder,new_out_folder,foldername)
 
 if __name__ in ["__builtin__", "__main__"]:
-	run_script()
+	in_path = in_dir.getAbsolutePath()
+	out_path = out_dir.getAbsolutePath()
+	new_filename = in_dir.getName()
+	if batch_folder:
+		batch_run_script(in_path,out_path)
+	else:
+		run_script(in_path,out_path,new_filename)
