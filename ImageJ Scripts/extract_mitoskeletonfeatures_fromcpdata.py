@@ -37,12 +37,16 @@ def get_location_code(file_name):
 		return None
 
 
-def get_plate_number(file_name):
+def get_plate_number(file_name,image_path):
 	match = re.search(r"rep(\d{1,2})", file_name)
 	if match:
 		return match.group(1)
 	else:
-		return None
+		match = re.search(r"rep(\d{1,2})", image_path)
+		if match:
+			return match.group(1)
+		else:
+			return None
 
 
 def get_object_number(file_name):
@@ -354,7 +358,7 @@ def run_script(in_path,out_path,new_filename):
 					{
 						"ImageTitle": title,
 						"ObjectNumber": get_object_number(title),
-						"Metadata_PlateNumber": get_plate_number(title),
+						"Metadata_PlateNumber": get_plate_number(title,image_path),
 						"Metadata_RowColField": get_location_code(title),
 						"Metadata_ThresholdingOP": threshold_method,
 					}
