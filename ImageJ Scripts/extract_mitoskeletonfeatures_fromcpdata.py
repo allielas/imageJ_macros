@@ -215,27 +215,40 @@ def analyze_skel(imp, output_parameters, out_path):
 		try:
 			total_length_from_branches += (branches[i] * average_branch_lengths[i])
 		except IndexError as e:
-			print("Branch legnths out of range for image " + title + " : " + e)
-
+			print("Branch legnths out of range for image " + title + " : ")
+			print(e)
+			
+	#get max values and handle ValueErrors for the max of an empty sequence
+	try:
+		max_branch_length = max(branch_lengths)
+		max_skeleton_length = max(summed_lengths)
+		max_branches_per_structure = max(branches)
+	except ValueError as e:
+		print("Image" + title + " has no valid branches, setting max values to zero. ")
+		print(e)
+		max_branch_length = 0
+		max_skeleton_length = 0
+		max_branches_per_structure = 0
+		
 	# update output parameters with the values we have calculated so far
 	output_parameters.update({\
-		"BranchLength_Mean": mean(branch_lengths),\
-		"BranchLength_Median": median(branch_lengths),\
-		"BranchLength_Stdev": stdev(branch_lengths),\
-		"BranchLength_Max": max(branch_lengths),\
-		"SkeletonLength_Mean": mean(summed_lengths),\
-		"SkeletonLength_Median": median(summed_lengths),\
-		"SkeletonLength_Stdev": stdev(summed_lengths),\
-		"SkeletonLength_Max": max(summed_lengths),\
-		"BranchesPerStructure_Mean": mean(branches),\
-		"BranchesPerStructure_Median": median(branches),\
-		"BranchesPerStructure_Stdev": stdev(branches),\
-		"BranchesPerStructure_Max": max(branches),\
-		"Total_SkeletonLength": total_length,\
-		"Total_SkeletonLength_FromBranches": total_length_from_branches,\
-		"Total_Donuts": num_donuts,\
-		}\
-	)\
+			"BranchLength_Mean": mean(branch_lengths),\
+			"BranchLength_Median": median(branch_lengths),\
+			"BranchLength_Stdev": stdev(branch_lengths),\
+			"BranchLength_Max": max_branch_length,\
+			"SkeletonLength_Mean": mean(summed_lengths),\
+			"SkeletonLength_Median": median(summed_lengths),\
+			"SkeletonLength_Stdev": stdev(summed_lengths),\
+			"SkeletonLength_Max": max_skeleton_length,\
+			"BranchesPerStructure_Mean": mean(branches),\
+			"BranchesPerStructure_Median": median(branches),\
+			"BranchesPerStructure_Stdev": stdev(branches),\
+			"BranchesPerStructure_Max": max_branches_per_structure,\
+			"Total_SkeletonLength": total_length,\
+			"Total_SkeletonLength_FromBranches": total_length_from_branches,\
+			"Total_Donuts": num_donuts,\
+			}\
+		)\
 	# calculate totals / max and populate output parameters from the table
 	columns_string = full_skel_results_table.getColumnHeadings().strip() # get rid of the index col
 	columns = columns_string.split("	")
