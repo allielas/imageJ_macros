@@ -90,17 +90,14 @@ def get_output_parameters():
 		"BranchLength_Mean",
 		"BranchLength_Median",
 		"BranchLength_Stdev",
-		"BranchLength_Max",
 		"SkeletonLength_Mean",
 		"SkeletonLength_Median",
 		"SkeletonLength_Stdev",
-		"SkeletonLength_Max",
+		"Max_SkeletonLength",
 		"BranchesPerStructure_Mean",
 		"BranchesPerStructure_Median",
 		"BranchesPerStructure_Stdev",
-		"BranchesPerStructure_Max",
 		"Total_SkeletonLength",
-		"Total_SkeletonLength_FromBranches",
 		"Total_Donuts")
 	header_cols = get_skel_results_table_header_cols()
 	header_cols_total = ["Total_" + col for col in header_cols[:10]]  # only add totals and max for the first 11 cols since the rest are coordinates of the shortest path
@@ -170,7 +167,7 @@ def analyze_skel(imp, output_parameters, out_path):
 	shortest_paths = skel_result.getShortestPathList().toArray()
 	graphs = skel_result.getGraph()
 	branches = list(skel_result.getBranches())
-	average_branch_lengths = list(skel_result.getAverageBranchLength())
+	# average_branch_lengths = list(skel_result.getAverageBranchLength()) Only need this if doing total from branches
 	branch_lengths = []
 	summed_lengths = []
 	total_length = 0
@@ -211,41 +208,40 @@ def analyze_skel(imp, output_parameters, out_path):
 		total_length += summed_length
 		
  	# calculate total length from branches by multiplying the number of branches by the average branch length for each skeleton and summing across all skeletons
+	''''
+	Not using at the moment, same result as the total length
 	for i in range(len(branches)):
 		try:
 			total_length_from_branches += (branches[i] * average_branch_lengths[i])
 		except IndexError as e:
 			print("Branch legnths out of range for image " + title + " : ")
 			print(e)
-			
+	'''		
 	#get max values and handle ValueErrors for the max of an empty sequence
 	try:
-		max_branch_length = max(branch_lengths)
 		max_skeleton_length = max(summed_lengths)
-		max_branches_per_structure = max(branches)
+		# max_branch_length = max(branch_lengths)
+		# max_branches_per_structure = max(branches)
 	except ValueError as e:
 		print("Image" + title + " has no valid branches, setting max values to zero. ")
 		print(e)
-		max_branch_length = 0
 		max_skeleton_length = 0
-		max_branches_per_structure = 0
+		# max_branch_length = 0
+		# max_branches_per_structure = 0
 		
 	# update output parameters with the values we have calculated so far
 	output_parameters.update({\
 			"BranchLength_Mean": mean(branch_lengths),\
 			"BranchLength_Median": median(branch_lengths),\
 			"BranchLength_Stdev": stdev(branch_lengths),\
-			"BranchLength_Max": max_branch_length,\
 			"SkeletonLength_Mean": mean(summed_lengths),\
 			"SkeletonLength_Median": median(summed_lengths),\
 			"SkeletonLength_Stdev": stdev(summed_lengths),\
-			"SkeletonLength_Max": max_skeleton_length,\
+			"Max_SkeletonLength": max_skeleton_length,\
 			"BranchesPerStructure_Mean": mean(branches),\
 			"BranchesPerStructure_Median": median(branches),\
 			"BranchesPerStructure_Stdev": stdev(branches),\
-			"BranchesPerStructure_Max": max_branches_per_structure,\
 			"Total_SkeletonLength": total_length,\
-			"Total_SkeletonLength_FromBranches": total_length_from_branches,\
 			"Total_Donuts": num_donuts,\
 			}\
 		)\
