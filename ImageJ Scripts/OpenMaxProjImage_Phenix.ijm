@@ -122,39 +122,71 @@ macro "OpenMaxProjImage_Phenix"{
 		return colour_index
 	}
 	function merge_ch(path,rowcolfield,suffix,channels) {
-		//function to open each single-channel image from that location and merge into a color composite
+		// function to open each single-channel image from that location and merge into a color composite
+	
+		// Close any open images
 		close("*");
-		base_filename = "MAX_ch" + "2-" + rowcolfield + suffix; //construct base file name based on phenix format
+	
 		colour_rename(channelColours);
-		if(File.exists(path + base_filename)){
-			startIndex = 1;
-			endIndex = channels;
-			//Increment by 1 if using DPC in channel 1
-			if(DPC) {
-				startIndex = 2;
-				endIndex+=1;
+	
+		// We allow a flexible prefix before "MAX_ch{N}-{rowcolfield}{suffix}"
+		// Example match: "*MAX_ch2-r01c01f01.tif"
+		function findFileWithSuffixAndPattern(dir, chIndex) {
+			// Build the required "tail" that must match exactly
+			// (everything before this tail is the flexible/wildcard part)
+			tail = "MAX_ch" + chIndex + "-" + rowcolfield + suffix;
+	
+			list = getFileList(dir);
+			for (k = 0; k < list.length; k++) {
+				// match filename that ends with the required tail
+				// (this is your wildcard-at-start behavior)
+				if (endsWith(list[k], tail)) {
+					return dir + list[k];
+				}
 			}
-			for (i = startIndex; i <= endIndex; i++) {
-	    		//open in order by channels
-				curr_img_path = path + "MAX_ch" + i+"-" + rowcolfield + suffix;
-	    		open(curr_img_path);
-			}
-			chNames = getList("image.titles"); //get the 0-indexed list
-			
-			//define colour channels mappings as ch -1 
-			if(nChannels ==3) {
-				run("Merge Channels...", "red="+ chNames[get_colour_index("red")] +" green="+ chNames[get_colour_index("green")] +" c5="+ chNames[get_colour_index("blue")] +" create");
-			}
-			else {
-				run("Merge Channels...", "red=" + chNames[get_colour_index("red")] +" green="+ chNames[get_colour_index("green")] +" c5="+ chNames[get_colour_index("blue")] + " c6=" + chNames[get_colour_index("fr")] +" create");
-			}
-			
-			//c3=blue, c4=gray, c5 = cyan, c6 = magenta
-			
-			//change image name to avoid confusion
-			rename(rowcolfield);
-		} else {
+			return "";
+		}
+	
+		// Determine channel index range (same logic you already had)
+		startIndex = 1;
+		endIndex = channels;
+		if (DPC) {
+			startIndex = 2;
+			endIndex += 1;
+		}
+	
+		// Make sure channel 1 exists (using wildcard matching)
+		testPath = findFileWithSuffixAndPattern(path, 1);
+		if (lengthOf(testPath) == 0) {
 			exit("Error: File not found at the plate coordinates: " + rowcolfield + "\nin directory: \n" + path);
 		}
+			
+		// Open in order by channels
+		for (i = startIndex; i <= endIndex; i++) {
+			curr_img_path = findFileWithSuffixAndPattern(path, i);
+			if (lengthOf(curr_img_path) == 0) {
+				exit("Error: Missing file for channel " + i + " at " + rowcolfield + "\nin directory: \n" + path);
+			}
+			open(curr_img_path);
+		}
+	
+		chNames = getList("image.titles"); // 0-indexed list of open image titles
+	
+		if(nChannels == 3) {
+			run("Merge Channels...", "red="+ chNames[get_colour_index("red")] +
+				" green="+ chNames[get_colour_index("green")] +
+				" c5="+ chNames[get_colour_index("blue")] +
+				" create");
+		} else {
+			run("Merge Channels...", "red=" + chNames[get_colour_index("red")] +
+				" green=" + chNames[get_colour_index("green")] +
+				" c5=" + chNames[get_colour_index("blue")] +
+				" c6=" + chNames[get_colour_index("fr")] +
+				" create");
+		}
+	
+		// change image name to avoid confusion
+		rename(rowcolfield);
 	}
+
 }
