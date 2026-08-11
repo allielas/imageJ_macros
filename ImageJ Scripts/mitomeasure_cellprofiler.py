@@ -4,7 +4,7 @@
 #@ Integer(value=127, min=0, max=1024) clahe_block
 #@ Integer(value=256, min=0, max=1024) clahe_bins
 #@ Integer(value=3, min=0, max=24) clahe_slope
-#@ boolean (value=False") use_skeletonize
+#@ Boolean (value=False) use_skeletonize
 #@ OpService ops
 from ij import IJ, Prefs
 from ij import WindowManager as wm

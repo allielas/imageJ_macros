@@ -7,7 +7,7 @@
 # @ File (label="Input Directory", style="directory") in_dir
 # @ File (label="Output Directory", style="directory") out_dir
 # @ String (label="Type of image to save as", choices={'jpg', 'tiff', 'png'}) extension
-# @ boolean (value=False" label="Skeletonize Masks? (if using masks instead of skeleton imaages)") use_skeletonize
+# @ Boolean (value=False, label="Skeletonize Masks? (if using masks instead of skeleton imaages)") use_skeletonize
 # @ File (label="Repo Directory", style="directory") repo_dir
 
 from ij import IJ, Prefs, ImagePlus
