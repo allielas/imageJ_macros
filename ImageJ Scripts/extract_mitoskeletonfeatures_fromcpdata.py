@@ -94,15 +94,15 @@ def get_output_parameters():
 		"SkeletonLength_Mean",
 		"SkeletonLength_Median",
 		"SkeletonLength_Stdev",
-		"Max_SkeletonLength",
+		"LargestStructure_SkeletonLength",
 		"BranchesPerStructure_Mean",
 		"BranchesPerStructure_Median",
 		"BranchesPerStructure_Stdev",
-		"Total_SkeletonLength",
-		"Total_Donuts")
+		"TotalAcrossAllStructures_SkeletonLength",
+		"TotalAcrossAllStructures_Donuts")
 	header_cols = get_skel_results_table_header_cols()
-	header_cols_total = ["Total_" + col for col in header_cols[:10]]  # only add totals and max for the first 11 cols since the rest are coordinates of the shortest path
-	header_cols_max = ["Max_" + col for col in header_cols[:10]]
+	header_cols_total = ["TotalAcrossAllStructures_" + col for col in header_cols[:10]]  # only add totals and max for the first 11 cols since the rest are coordinates of the shortest path
+	header_cols_max = ["LargestStructure_" + col for col in header_cols[:10]]
 	output_columns = output_columns + tuple(header_cols_total) + tuple(header_cols_max)
 
 	return OrderedDict((name, None) for name in output_columns)
@@ -238,12 +238,12 @@ def analyze_skel(imp, output_parameters, out_path):
 			"SkeletonLength_Mean": mean(summed_lengths),\
 			"SkeletonLength_Median": median(summed_lengths),\
 			"SkeletonLength_Stdev": stdev(summed_lengths),\
-			"Max_SkeletonLength": max_skeleton_length,\
+			"LargestStructure_SkeletonLength": max_skeleton_length,\
 			"BranchesPerStructure_Mean": mean(branches),\
 			"BranchesPerStructure_Median": median(branches),\
 			"BranchesPerStructure_Stdev": stdev(branches),\
-			"Total_SkeletonLength": total_length,\
-			"Total_Donuts": num_donuts,\
+			"TotalAcrossAllStructures_SkeletonLength": total_length,\
+			"TotalAcrossAllStructures_Donuts": num_donuts,\
 			}\
 		)\
 	# calculate totals / max and populate output parameters from the table
@@ -254,12 +254,12 @@ def analyze_skel(imp, output_parameters, out_path):
 		col_total = sum(column)
 		col_max = max(column)
 		try:
-			output_parameters["Total_" + colname] = col_total
-			output_parameters["Max_" + colname] = col_max
+			output_parameters["TotalAcrossAllStructures_" + colname] = col_total
+			output_parameters["LargestStructure_" + colname] = col_max
 		except KeyError:
 			print("Column "+ colname + " not in output parameters, skipping total and max for this column")
-			output_parameters["Total_" + colname] = None
-			output_parameters["Max_" + colname] = None
+			output_parameters["TotalAcrossAllStructures_" + colname] = None
+			output_parameters["LargestStructure_" + colname] = None
 	# print(str(branches) + str(median(branches))
 
 	# Create/append results to a ResultsTable...
