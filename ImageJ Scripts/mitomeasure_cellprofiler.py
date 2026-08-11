@@ -4,6 +4,7 @@
 #@ Integer(value=127, min=0, max=1024) clahe_block
 #@ Integer(value=256, min=0, max=1024) clahe_bins
 #@ Integer(value=3, min=0, max=24) clahe_slope
+#@ boolean (value=False") use_skeletonize
 #@ OpService ops
 from ij import IJ, Prefs
 from ij import WindowManager as wm
@@ -78,10 +79,10 @@ def process_img(imp):
 	#IJ.run(imp, "Open", "");
 	im2 = IJ.getImage()
 	IJ.saveAs(im2,'tiff',os.path.join(directory,'threshmito.tiff'))
-	
-	IJ.run(imp, "Skeletonize", "")
-	im3 = IJ.getImage()
-	IJ.saveAs(im3,'tiff',os.path.join(directory,'skelmito.tiff'))
+	if use_skeletonize:
+		IJ.run(imp, "Skeletonize", "")
+		im3 = IJ.getImage()
+		IJ.saveAs(im3,'tiff',os.path.join(directory,'skelmito.tiff'))
 	#IJ.run(imp, "Analyze Skeleton (2D/3D)", "") #prune=[shortest branch] prune_0 calculate
 	
 	return imp

@@ -7,6 +7,7 @@
 # @ File (label="Input Directory", style="directory") in_dir
 # @ File (label="Output Directory", style="directory") out_dir
 # @ String (label="Type of image to save as", choices={'jpg', 'tiff', 'png'}) extension
+# @ boolean (value=False" label="Skeletonize Masks? (if using masks instead of skeleton imaages)") use_skeletonize
 # @ File (label="Repo Directory", style="directory") repo_dir
 
 from ij import IJ, Prefs, ImagePlus
@@ -372,9 +373,15 @@ def run_script(in_path,out_path,new_filename):
 						"Metadata_ThresholdingOP": threshold_method,
 					}
 				)
-				# calculate footpint before skeletonizing
-				output_parameters = calculate_footprint(imp, output_parameters)
-				imp = skeletonize_img(imp, save=save_images)
+				# if skeletonizing a mask
+				if use_skeletonize:
+					# calculate footpint before skeletonizing
+					output_parameters = calculate_footprint(imp, output_parameters)
+					imp = skeletonize_img(imp, save=save_images)
+				# otherwise use provided skeleton mask and don't calculate footprint
+				else:
+					# handle footprint if not skeletonizing
+					output_parameters["MitochondrialFootprint"] = None
 				imp, skelresult = analyze_skel(imp, output_parameters, out_path)
 				IJ.run("Close All")
 		# now export as csv
