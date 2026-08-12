@@ -124,9 +124,6 @@ macro "OpenMaxProjImage_Phenix"{
 	function merge_ch(path,rowcolfield,suffix,channels) {
 		// function to open each single-channel image from that location and merge into a color composite
 	
-		// Close any open images
-		close("*");
-	
 		colour_rename(channelColours);
 	
 		// We allow a flexible prefix before "MAX_ch{N}-{rowcolfield}{suffix}"
@@ -167,10 +164,21 @@ macro "OpenMaxProjImage_Phenix"{
 			if (lengthOf(curr_img_path) == 0) {
 				exit("Error: Missing file for channel " + i + " at " + rowcolfield + "\nin directory: \n" + path);
 			}
+			
 			open(curr_img_path);
 		}
 	
-		chNames = getList("image.titles"); // 0-indexed list of open image titles
+		pre_chNames = getList("image.titles"); // 0-indexed list of open image titles
+		if (pre_chNames.length > 4) {
+			// If more than 4 images, only take the last 4
+			extra_images = pre_chNames.length - 4;
+			//chNames = pre_chNames[
+			chNames = Array.slice(pre_chNames,extra_images-1,pre_chNames.length-1);
+			print("there are " + chNames.length + " open images, skipping first " + extra_images+ ".");
+		}
+		else{
+			chNames = pre_chNames;
+		}
 	
 		if(nChannels == 3) {
 			run("Merge Channels...", "red="+ chNames[get_colour_index("red")] +
