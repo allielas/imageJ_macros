@@ -24,7 +24,7 @@ from sc.fiji.analyzeSkeleton import AnalyzeSkeleton_
 # import the MinA functions for analyzing the skeletons, we will use some of the code from MiNA_Analyze_Morphology.py to do this
 repo_path = repo_dir.getAbsolutePath()
 sys.path.append(os.path.join(repo_path, "ImageJ Scripts"))
-from statistics import median, mean, stdev
+from statistics import median, mean, stdev, quantiles
 import tables
 
 #  Note; for this plugin we take a binary image from cellprofiler and label it according to the image_object number
@@ -66,34 +66,42 @@ def get_skel_results_table_header_cols():
 		"NumberOfBranches",
 		"NumberOfJunctions",
 		"NumberOfEndpointVoxels",
-		"NumberOfJunctionVoxels", 
+		"NumberOfJunctionVoxels",
 		"NumberOfSlabVoxels",
-		"AverageBranchLength", 
-		"NumberOfTriplePoints", 
-		"NumberOfQuadruplePoints", 
-		"MaximumBranchLength", 
-		"ShortestPathLength", 
-		"spx", 
-		"spy", 
+		"AverageBranchLength",
+		"NumberOfTriplePoints",
+		"NumberOfQuadruplePoints",
+		"MaximumBranchLength",
+		"ShortestPathLength",
+		"spx",
+		"spy",
 		"spz"
-		] 
+		]
 	return cols
 
 
 def get_output_parameters():
-	output_columns = ( 
-		"ImageTitle", 
-		"ObjectNumber", 
-		"Metadata_PlateNumber", 
-		"Metadata_RowColField", 
+	output_columns = (
+		"ImageTitle",
+		"ObjectNumber",
+		"Metadata_PlateNumber",
+		"Metadata_RowColField",
 		"Metadata_ThresholdingOP",
 		"MitochondrialFootprint",
 		"BranchLength_Mean",
 		"BranchLength_Median",
 		"BranchLength_Stdev",
+		"BranchLength_Q1",
+		"BranchLength_Q2",
+		"BranchLength_Q3",
+		#"BranchLength_Q4",
 		"SkeletonLength_Mean",
 		"SkeletonLength_Median",
 		"SkeletonLength_Stdev",
+		"SkeletonLength_Q1",
+		"SkeletonLength_Q2",
+		"SkeletonLength_Q3",
+		#"SkeletonLength_Q4",
 		"LargestStructure_SkeletonLength",
 		"BranchesPerStructure_Mean",
 		"BranchesPerStructure_Median",
@@ -101,8 +109,10 @@ def get_output_parameters():
 		"TotalAcrossAllStructures_SkeletonLength",
 		"TotalAcrossAllStructures_Donuts")
 	header_cols = get_skel_results_table_header_cols()
-	header_cols_total = ["TotalAcrossAllStructures_" + col for col in header_cols[:10]]  # only add totals and max for the first 11 cols since the rest are coordinates of the shortest path
-	header_cols_max = ["LargestStructure_" + col for col in header_cols[:10]]
+	# only add totals and max for the first 11 cols since the rest are coordinates of the shortest path
+	end_col_index = len(header_cols)-3
+	header_cols_total = ["TotalAcrossAllStructures_" + col for col in header_cols[:end_col_index]]
+	header_cols_max = ["LargestStructure_" + col for col in header_cols[:end_col_index]]
 	output_columns = output_columns + tuple(header_cols_total) + tuple(header_cols_max)
 
 	return OrderedDict((name, None) for name in output_columns)
@@ -207,7 +217,7 @@ def analyze_skel(imp, output_parameters, out_path):
 		# add summed length for this graph to the list of summed lengths for all skeletons (and update total)
 		summed_lengths.append(summed_length)
 		total_length += summed_length
-		
+
  	# calculate total length from branches by multiplying the number of branches by the average branch length for each skeleton and summing across all skeletons
 	''''
 	Not using at the moment, same result as the total length
@@ -217,7 +227,7 @@ def analyze_skel(imp, output_parameters, out_path):
 		except IndexError as e:
 			print("Branch legnths out of range for image " + title + " : ")
 			print(e)
-	'''		
+	'''
 	#get max values and handle ValueErrors for the max of an empty sequence
 	try:
 		max_skeleton_length = max(summed_lengths)
@@ -229,15 +239,28 @@ def analyze_skel(imp, output_parameters, out_path):
 		max_skeleton_length = 0
 		# max_branch_length = 0
 		# max_branches_per_structure = 0
-		
+
+	#TODO move this down 
+	#get quartiles
+	branch_quartiles = quantiles(branch_lengths,n=4)
+	skel_quartiles = quantiles(summed_lengths,n=4)
+	
 	# update output parameters with the values we have calculated so far
 	output_parameters.update({\
 			"BranchLength_Mean": mean(branch_lengths),\
 			"BranchLength_Median": median(branch_lengths),\
 			"BranchLength_Stdev": stdev(branch_lengths),\
+			"BranchLength_Q1": branch_quartiles[0],\
+			"BranchLength_Q2": branch_quartiles[1],\
+			"BranchLength_Q3": branch_quartiles[2],\
+			#"BranchLength_Q4": branch_quartiles[3],\
 			"SkeletonLength_Mean": mean(summed_lengths),\
 			"SkeletonLength_Median": median(summed_lengths),\
 			"SkeletonLength_Stdev": stdev(summed_lengths),\
+			"SkeletonLength_Q1": skel_quartiles[0],\
+			"SkeletonLength_Q2": skel_quartiles[1],\
+			"SkeletonLength_Q3": skel_quartiles[2],\
+			#"SkeletonLength_Q4": skel_quartiles[3],\
 			"LargestStructure_SkeletonLength": max_skeleton_length,\
 			"BranchesPerStructure_Mean": mean(branches),\
 			"BranchesPerStructure_Median": median(branches),\
@@ -249,7 +272,8 @@ def analyze_skel(imp, output_parameters, out_path):
 	# calculate totals / max and populate output parameters from the table
 	columns_string = full_skel_results_table.getColumnHeadings().strip() # get rid of the index col
 	columns = columns_string.split("	")
-	for colname in columns[:10]:  # skip index and coordinates
+	end_col_index = len(columns)-3
+	for colname in columns[:end_col_index]:  # skip index and coordinates
 		column = full_skel_results_table.getColumn(colname)
 		col_total = sum(column)
 		col_max = max(column)
@@ -358,8 +382,12 @@ def run_script(in_path,out_path,new_filename):
 	csv_filename = new_filename + ".csv"
 	# recurse through input directory and process images, analyze skeleton, and add results to output
 	for root, dirs, files in os.walk(in_path):
-		for filename in files:
+		for i,filename in enumerate(files):
 			if ".tiff" in filename:
+				# progress bar
+				IJ.showProgress(i, len(files))
+				IJ.showStatus("Processing step %d/%d" % (i, len(files)))
+				#make path and open image
 				image_path = os.path.join(root, filename)
 				imp = IJ.openImage(image_path)
 				IJ.run(imp, "Make Binary", "")
@@ -392,6 +420,8 @@ def run_script(in_path,out_path,new_filename):
 	# IJ.saveAs("Results", os.path.join(out_path,csv_filename))
 
 	# cleanup
+	IJ.showProgress(1.0)
+	IJ.showStatus("Done!")
 	IJ.run("Clear Results")
 	wm.getWindow("Mito Morphology").close()
 	wm.getWindow("Results").close()
@@ -407,7 +437,7 @@ def batch_run_script(in_path,out_path):
 		#make the correct path and add to dir if this is a dir
 		full_path = os.path.join(in_path, item)
 		if os.path.isdir(full_path):
-			
+
 			folders_to_use.append(full_path)
 	#now run script for everything in listy
 	for folder in folders_to_use:

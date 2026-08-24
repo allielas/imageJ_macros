@@ -1,1 +1,1 @@
-from ._statistics import mean, median, stdev
+from ._statistics import mean, median, stdev, quantiles

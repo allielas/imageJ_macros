@@ -5,16 +5,28 @@
 
 macro "OpenMaxProjImage_Phenix"{
 #@ File (label = "Input directory", style = "directory") input
-#@ String (label = "File suffix", value = ".tif") suffix
-#@ int (value=1, min=1, max=16, style="slider") row 
-#@ int (value=1, min=1, max=24, style="slider") col 
-#@ int (value=1, min=1, max=40, style="slider") field
+#@ String (label = "File extension suffix", value = ".tif") suffix
+#@ int (min=1, max=16, style="slider") row 
+#@ int (min=1, max=24, style="slider") col 
+#@ int (min=1, max=40, style="slider") field
 #@ String(label="What is your fluorescence channel order", description="Enter colors in order seperated by commas e.g. green,red,far red,blue") channelOrder
 #@ boolean (label = "Using DPC?") DPC
 #@ boolean (label = "Open random image instead?") randomFlag
 
-	//add the extra slash to satisfy linux path
-	input = input+ "/";
+
+//Fix stupid UI bug that doesn't save the default value
+	if(row < 1){
+		row = 1
+	}
+	if(col < 1){
+		col = 1
+	}
+	if(field < 1){
+		field = 1
+	}
+	
+	//add the file separator satisfy linux path
+	input = input+ File.separator;
 	
 	channelColours = split(channelOrder,",");
 	nChannels = lengthOf(channelColours);
@@ -144,7 +156,7 @@ macro "OpenMaxProjImage_Phenix"{
 			return "";
 		}
 	
-		// Determine channel index range (same logic you already had)
+		// Determine channel index range
 		startIndex = 1;
 		endIndex = channels;
 		if (DPC) {
@@ -172,9 +184,8 @@ macro "OpenMaxProjImage_Phenix"{
 		if (pre_chNames.length > 4) {
 			// If more than 4 images, only take the last 4
 			extra_images = pre_chNames.length - 4;
-			//chNames = pre_chNames[
-			chNames = Array.slice(pre_chNames,extra_images-1,pre_chNames.length-1);
-			print("there are " + chNames.length + " open images, skipping first " + extra_images+ ".");
+			//print("there are " + pre_chNames.length + " open images, skipping first " + extra_images+ ".");
+			chNames = Array.slice(pre_chNames,extra_images,pre_chNames.length);
 		}
 		else{
 			chNames = pre_chNames;
@@ -193,8 +204,26 @@ macro "OpenMaxProjImage_Phenix"{
 				" create");
 		}
 	
-		// change image name to avoid confusion
-		rename(rowcolfield);
+		// change image name to avoid confusion + add the plate number to filename
+		
+		//get rep string (rep0X) from path
+		//input_folder_split = split(File.getName(input), "_");
+		input_folder_split = split(input, File.separator+"_");
+		//Array.print(input_folder_split);
+		rep = Array.filter(input_folder_split,"(rep\\d{2}\\z)");
+		Array.show(rep);
+		// go through the matches and rename with first one
+		if (lengthOf(rep) > 0){
+			for (i=0; i< lengthOf(rep); i++){
+				if (startsWith(rep[i], "rep")){
+					rename(rep[i]+ "_" +rowcolfield);
+					break
+				}
+			}
+		}
+		else {
+			rename(rowcolfield);
+		}
 	}
 
 }
